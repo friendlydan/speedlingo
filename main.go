@@ -55,6 +55,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = os.MkdirAll(reviewResultsDir, 0755); err != nil {
+		log.Fatal(err)
+	}
+
 	conf, err = unmarshalConfigFile()
 	if err != nil {
 		log.Fatal(err)
