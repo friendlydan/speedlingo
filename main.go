@@ -286,7 +286,7 @@ func handleReview(dir, token string, r *git.Repository, cmd *exec.Cmd) error {
 	}
 
 	fmt.Printf("Wrote %s file\n", yamlName)
-	err := runCmd(dir, cmd)
+	err = runCmd(dir, cmd)
 	if err != nil {
 		return errors.Trace(err)
 	}
