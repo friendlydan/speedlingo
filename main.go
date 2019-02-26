@@ -34,16 +34,14 @@ const yamlDataReview = `tenets:
 const yamlDataRewrite = `tenets:
   - import: codelingo/effective-go/comment-first-word-as-subject
 `
-
-const configFile = "config.yaml"
 const ignoreData = `vendor/`
 const yamlName = "codelingo.yaml"
 const ignoreFileName = ".codelingoignore"
 const commitMessageRewrite = "Update comments based on best practices from Effective Go"
 const branchName = "rewrite"
 
+var configFile = os.Getenv("GOPATH") + "/src/speedlingo/config.yaml"
 var reviewResultsDir = os.Getenv("HOME") + "/speedlingo-review-results"
-
 var conf config
 
 func main() {
