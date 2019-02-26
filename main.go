@@ -18,7 +18,14 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
+	yaml "gopkg.in/yaml.v2"
 )
+
+type config struct {
+	Username string `yaml:"username"`
+	Email    string `yaml:"email"`
+	Token    string `yaml:"token"`
+}
 
 const yamlDataReview = `tenets:
   - import: codelingo/code-review-comments
@@ -28,6 +35,7 @@ const yamlDataRewrite = `tenets:
   - import: codelingo/effective-go/comment-first-word-as-subject
 `
 
+const configFile = "config.yaml"
 const ignoreData = `vendor/`
 const yamlName = "codelingo.yaml"
 const ignoreFileName = ".codelingoignore"
@@ -36,26 +44,26 @@ const branchName = "rewrite"
 
 var reviewResultsDir = os.Getenv("HOME") + "/speedlingo-review-results"
 
-// -------- Change These ------------
-const userName = "friendlydan"
-const userEmail = "daniel.g.bent@gmail.com"
-
-// ----------------------------------
+var conf config
 
 func main() {
 	var rf *github.Repository
 	var err error
 	ctx := context.Background()
-	if len(os.Args) != 5 {
-		fmt.Println("Usage: <command> <owner> <repo name> <github token>")
+	if len(os.Args) != 4 {
+		fmt.Println("Usage: speedlingo <command> <owner> <repo name>")
 		os.Exit(1)
+	}
+
+	conf, err = unmarshalConfigFile()
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	owner := os.Args[2]
 	repo := os.Args[3]
-	token := os.Args[4]
 
-	authedClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token}))
+	authedClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: conf.Token}))
 	client := github.NewClient(authedClient)
 
 	rf, _, err = client.Repositories.CreateFork(ctx, owner, repo, nil)
@@ -71,7 +79,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		rf, _, err = client.Repositories.Get(ctx, userName, repo)
+		rf, _, err = client.Repositories.Get(ctx, conf.Username, repo)
 		if err != nil {
 			fmt.Println(err.Error())
 			time.Sleep(time.Second * 2)
@@ -107,12 +115,12 @@ func main() {
 	case "review":
 		fmt.Println("Results will be stored in", reviewResultsDir)
 		cmd = exec.Command("lingo", "run", "review", "--debug", "--keep-all", "-o", reviewResultsDir+"/"+repo+"-"+"results.json")
-		if err := handleReview(dir, token, r, cmd); err != nil {
+		if err := handleReview(dir, conf.Token, r, cmd); err != nil {
 			log.Fatal(err)
 		}
 	case "rewrite":
 		cmd = exec.Command("lingo", "run", "rewrite", "--debug", "--keep-all")
-		if err := handleRewrite(dir, token, r, cmd); err != nil {
+		if err := handleRewrite(dir, conf.Token, r, cmd); err != nil {
 			log.Fatal(err)
 		}
 	default:
@@ -121,16 +129,16 @@ func main() {
 }
 
 func runCmd(dir string, cmd *exec.Cmd) error {
-	fmt.Println("Running lingo command...")
 	err := os.Chdir(dir)
 	if err != nil {
 		return errors.Trace(err)
 	}
-
+	fmt.Println("Running lingo command...")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	if err != nil {
+		os.RemoveAll(dir)
 		return errors.Annotate(err, "cmd.Run() failed:")
 	}
 
@@ -188,11 +196,6 @@ func handleRewrite(dir, token string, r *git.Repository, cmd *exec.Cmd) error {
 		if err != nil {
 			return errors.Trace(err)
 		}
-
-		// _, err = worktree.Add(ignoreFileName)
-		// if err != nil {
-		// 	return "", errors.Trace(err)
-		// }
 		fmt.Printf("Wrote %s file\n", ignoreFileName)
 	}
 
@@ -220,8 +223,8 @@ func handleRewrite(dir, token string, r *git.Repository, cmd *exec.Cmd) error {
 
 	commit, err := worktree.Commit(commitMessageRewrite, &git.CommitOptions{
 		Author: &object.Signature{
-			Name:  userName,
-			Email: userEmail,
+			Name:  conf.Username,
+			Email: conf.Email,
 			When:  time.Now(),
 		},
 	})
@@ -277,11 +280,6 @@ func handleReview(dir, token string, r *git.Repository, cmd *exec.Cmd) error {
 		if err != nil {
 			return errors.Trace(err)
 		}
-
-		// _, err = worktree.Add(ignoreFileName)
-		// if err != nil {
-		// 	return "", errors.Trace(err)
-		// }
 		fmt.Printf("Wrote %s file\n", ignoreFileName)
 	}
 
@@ -291,4 +289,14 @@ func handleReview(dir, token string, r *git.Repository, cmd *exec.Cmd) error {
 		return errors.Trace(err)
 	}
 	return nil
+}
+
+func unmarshalConfigFile() (config, error) {
+	var result config
+	str, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return config{}, errors.Trace(err)
+	}
+	err = yaml.UnmarshalStrict([]byte(str), &result)
+	return result, nil
 }
