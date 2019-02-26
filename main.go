@@ -37,8 +37,8 @@ const branchName = "rewrite"
 var reviewResultsDir = os.Getenv("HOME") + "/speedlingo-review-results"
 
 // -------- Change These ------------
-const userName = "CodelingoBotTester"
-const userEmail = "dan@codelingo.io"
+const userName = "friendlydan"
+const userEmail = "daniel.g.bent@gmail.com"
 
 // ----------------------------------
 
@@ -253,6 +253,39 @@ func handleRewrite(dir, token string, r *git.Repository, cmd *exec.Cmd) error {
 }
 
 func handleReview(dir, token string, r *git.Repository, cmd *exec.Cmd) error {
+	needsIgnoreFile := false
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	for _, file := range files {
+		if file.Name() == "vendor" && file.IsDir() {
+			fmt.Println("Found vendor directory")
+			needsIgnoreFile = true
+		}
+	}
+
+	filename := filepath.Join(dir, yamlName)
+	err = ioutil.WriteFile(filename, []byte(yamlDataRewrite), 0666)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	if needsIgnoreFile {
+		filename := filepath.Join(dir, ignoreFileName)
+		err = ioutil.WriteFile(filename, []byte(ignoreData), 0644)
+		if err != nil {
+			return errors.Trace(err)
+		}
+
+		// _, err = worktree.Add(ignoreFileName)
+		// if err != nil {
+		// 	return "", errors.Trace(err)
+		// }
+		fmt.Printf("Wrote %s file\n", ignoreFileName)
+	}
+
+	fmt.Printf("Wrote %s file\n", yamlName)
 	err := runCmd(dir, cmd)
 	if err != nil {
 		return errors.Trace(err)
