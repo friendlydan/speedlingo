@@ -28,13 +28,14 @@ type config struct {
 	Token    string `yaml:"token"`
 }
 
-const yamlDataReview = `tenets:
+var yamlDataReview = `tenets:
   - import: codelingo/effective-go
   - import: codelingo/code-review-comments
 `
-const yamlDataRewrite = `tenets:
+var yamlDataRewrite = `tenets:
   - import: codelingo/effective-go/comment-first-word-as-subject
 `
+
 const ignoreData = `vendor/`
 const yamlName = "codelingo.yaml"
 const ignoreFileName = ".codelingoignore"
@@ -47,9 +48,18 @@ var conf config
 
 func main() {
 
-	if len(os.Args) != 3 {
-		fmt.Println("Usage: speedlingo <command> <list file>")
+	if len(os.Args) < 3 && len(os.Args) > 4 {
+		fmt.Println("Usage: speedlingo <command> <list file> [path/to/codelingo.yaml]")
 		os.Exit(1)
+	}
+
+	if len(os.Args) == 4 {
+		yaml, err := ioutil.ReadFile(os.Args[3])
+		if err != nil {
+			log.Fatal(err)
+		}
+		yamlDataRewrite = string(yaml)
+		yamlDataReview = string(yaml)
 	}
 
 	repos, err := ioutil.ReadFile(os.Args[2])
