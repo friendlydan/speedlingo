@@ -53,15 +53,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	if len(os.Args) == 4 {
-		yaml, err := ioutil.ReadFile(os.Args[3])
-		if err != nil {
-			log.Fatal(err)
-		}
-		yamlDataRewrite = string(yaml)
-		yamlDataReview = string(yaml)
-	}
-
 	repos, err := ioutil.ReadFile(os.Args[2])
 	repoLines := strings.Split(string(repos), "\n")
 	if err != nil {
@@ -70,7 +61,7 @@ func main() {
 
 	re := regexp.MustCompile(".+/.+")
 
-	concurrency := 4
+	concurrency := 8
 	sem := make(chan bool, concurrency)
 	defer close(sem)
 
@@ -160,7 +151,13 @@ func do(line string) bool {
 	switch command := os.Args[1]; command {
 	case "review":
 		fmt.Println("Results will be stored in", reviewResultsDir)
-		cmd = exec.Command("lingo", "run", "review", "--debug", "--keep-all", "-o", reviewResultsDir+"/"+repo+"-"+"results.json")
+		cmdString := "lingo run review --debug --keep-all -o " + reviewResultsDir + "/" + repo + "-" + "results.json"
+		if len(os.Args) == 4 {
+			cmdString += " --lingo-file " + os.Args[3]
+		}
+		cmdSplit := strings.Split(cmdString, " ")
+		cmd = exec.Command(cmdSplit[0], cmdSplit[1:]...)
+
 		if err := handleReview(dir, conf.Token, r, cmd); err != nil {
 			fmt.Fprintf(os.Stderr, "error occurred: %v", err)
 			return false
