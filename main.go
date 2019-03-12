@@ -163,7 +163,12 @@ func do(line string) bool {
 			return false
 		}
 	case "rewrite":
-		cmd = exec.Command("lingo", "run", "rewrite", "--debug", "--keep-all")
+		cmdString := "lingo run rewrite --debug --keep-all -o " + reviewResultsDir + "/" + repo + "-" + "results.json"
+		if len(os.Args) == 4 {
+			cmdString += " --lingo-file " + os.Args[3]
+		}
+		cmdSplit := strings.Split(cmdString, " ")
+		cmd = exec.Command(cmdSplit[0], cmdSplit[1:]...)
 		if err := handleRewrite(dir, conf.Token, r, cmd); err != nil {
 			fmt.Fprintf(os.Stderr, "error occurred: %v", err)
 			return false
@@ -314,11 +319,13 @@ func handleReview(dir, token string, r *git.Repository, cmd *exec.Cmd) error {
 			needsIgnoreFile = true
 		}
 	}
-
-	filename := filepath.Join(dir, yamlName)
-	err = ioutil.WriteFile(filename, []byte(yamlDataReview), 0666)
-	if err != nil {
-		return errors.Trace(err)
+	if len(os.Args) != 4 {
+		filename := filepath.Join(dir, yamlName)
+		err = ioutil.WriteFile(filename, []byte(yamlDataReview), 0666)
+		if err != nil {
+			return errors.Trace(err)
+		}
+		fmt.Printf("Wrote %s file\n", yamlName)
 	}
 
 	if needsIgnoreFile {
@@ -330,7 +337,6 @@ func handleReview(dir, token string, r *git.Repository, cmd *exec.Cmd) error {
 		fmt.Printf("Wrote %s file\n", ignoreFileName)
 	}
 
-	fmt.Printf("Wrote %s file\n", yamlName)
 	err = runCmd(dir, cmd)
 	if err != nil {
 		return errors.Trace(err)
